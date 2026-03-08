@@ -1,0 +1,165 @@
+export type SudokuGrid = (number | null)[][];
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
+
+export interface SudokuPuzzle {
+  puzzle: SudokuGrid;
+  solution: SudokuGrid;
+}
+
+function createEmptyGrid(): SudokuGrid {
+  return Array(9).fill(null).map(() => Array(9).fill(null));
+}
+
+function isValid(grid: SudokuGrid, row: number, col: number, num: number): boolean {
+  for (let x = 0; x < 9; x++) {
+    if (grid[row][x] === num || grid[x][col] === num) {
+      return false;
+    }
+  }
+
+  const startRow = row - (row % 3);
+  const startCol = col - (col % 3);
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      if (grid[i + startRow][j + startCol] === num) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function fillGrid(grid: SudokuGrid): boolean {
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 9; col++) {
+      if (grid[row][col] === null) {
+        const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
+
+        for (const num of numbers) {
+          if (isValid(grid, row, col, num)) {
+            grid[row][col] = num;
+
+            if (fillGrid(grid)) {
+              return true;
+            }
+
+            grid[row][col] = null;
+          }
+        }
+
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function removeNumbers(grid: SudokuGrid, difficulty: Difficulty): SudokuGrid {
+  const cellsToRemove: Record<Difficulty, number> = {
+    easy: 35,
+    medium: 45,
+    hard: 52,
+    expert: 58
+  };
+
+  const puzzle = grid.map(row => [...row]);
+  const attempts = cellsToRemove[difficulty];
+  let removed = 0;
+
+  while (removed < attempts) {
+    const row = Math.floor(Math.random() * 9);
+    const col = Math.floor(Math.random() * 9);
+
+    if (puzzle[row][col] !== null) {
+      puzzle[row][col] = null;
+      removed++;
+    }
+  }
+
+  return puzzle;
+}
+
+export function generatePuzzle(difficulty: Difficulty = 'medium'): SudokuPuzzle {
+  const solution = createEmptyGrid();
+  fillGrid(solution);
+  const puzzle = removeNumbers(solution, difficulty);
+
+  return {
+    puzzle: puzzle.map(row => [...row]),
+    solution: solution.map(row => [...row])
+  };
+}
+
+export function solveSudoku(
+  grid: SudokuGrid,
+  onStep?: (grid: SudokuGrid, row: number, col: number) => void
+): boolean {
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 9; col++) {
+      if (grid[row][col] === null) {
+        for (let num = 1; num <= 9; num++) {
+          if (isValid(grid, row, col, num)) {
+            grid[row][col] = num;
+
+            if (onStep) {
+              onStep(grid, row, col);
+            }
+
+            if (solveSudoku(grid, onStep)) {
+              return true;
+            }
+
+            grid[row][col] = null;
+
+            if (onStep) {
+              onStep(grid, row, col);
+            }
+          }
+        }
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+export function validateGrid(grid: SudokuGrid): boolean {
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 9; col++) {
+      const num = grid[row][col];
+      if (num !== null) {
+        grid[row][col] = null;
+        if (!isValid(grid, row, col, num)) {
+          grid[row][col] = num;
+          return false;
+        }
+        grid[row][col] = num;
+      }
+    }
+  }
+  return true;
+}
+
+export function isComplete(grid: SudokuGrid): boolean {
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 9; col++) {
+      if (grid[row][col] === null) {
+        return false;
+      }
+    }
+  }
+  return validateGrid(grid);
+}
+
+export function cloneGrid(grid: SudokuGrid): SudokuGrid {
+  return grid.map(row => [...row]);
+}
+
+export function gridToString(grid: SudokuGrid): string {
+  return JSON.stringify(grid);
+}
+
+export function stringToGrid(str: string): SudokuGrid {
+  return JSON.parse(str);
+}
